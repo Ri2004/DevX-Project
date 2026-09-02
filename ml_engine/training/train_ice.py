@@ -29,6 +29,9 @@ class SeaIceDataset(Dataset):
 		self.data = np.load(tensor_path).astype(np.float32)  # (T, H, W)
 		self.sequence_length = sequence_length
 		
+		if len(self.data) < 30:
+			raise ValueError(f"Expanded training requires at least 30 frames, received {len(self.data)}")
+
 		if len(self.data) < sequence_length + 1:
 			raise ValueError(
 				f"Tensor has {len(self.data)} frames, "
@@ -59,7 +62,7 @@ def train():
 	print(f"Using device: {device}")
 	
 	# Paths
-	tensor_path = PROJECT_ROOT / "data" / "processed" / "sea_ice_tensors.npy"
+	tensor_path = PROJECT_ROOT / "data" / "processed" / "sea_ice_tensors_v2.npy"
 	checkpoint_dir = PROJECT_ROOT / "ml_engine" / "training" / "checkpoints"
 	checkpoint_dir.mkdir(parents=True, exist_ok=True)
 	
@@ -82,7 +85,7 @@ def train():
 	criterion = nn.MSELoss()
 	
 	# Training loop
-	num_epochs = 5
+	num_epochs = 18
 	print(f"\nTraining for {num_epochs} epochs...")
 	
 	for epoch in range(num_epochs):
@@ -105,11 +108,15 @@ def train():
 			total_loss += loss.item()
 		
 		avg_loss = total_loss / len(dataloader)
-		mae = torch.tensor(avg_loss).sqrt().item()
+		mae = 0.0
+		with torch.no_grad():
+			for x, y in dataloader:
+				mae += torch.abs(model(x.to(device)) - y.to(device)).mean().item()
+		mae /= len(dataloader)
 		print(f"Epoch {epoch + 1}/{num_epochs} | Loss: {avg_loss:.6f} | MAE: {mae:.6f}")
 	
 	# Save checkpoint
-	checkpoint_path = checkpoint_dir / "convlstm_ice_latest.pt"
+	checkpoint_path = checkpoint_dir / "convlstm_ice_v2.pt"
 	torch.save({
 		'model_state_dict': model.state_dict(),
 		'model_architecture': {

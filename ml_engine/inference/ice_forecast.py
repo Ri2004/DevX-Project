@@ -14,8 +14,8 @@ from ml_engine.models.convlstm_ice import SeaIceConvLSTM
 
 
 def generate_7day_forecast(
-	tensor_path: str | Path = "data/processed/sea_ice_tensors.npy",
-	model_path: str | Path = "ml_engine/training/checkpoints/convlstm_ice_latest.pt",
+	tensor_path: str | Path = "data/processed/sea_ice_tensors_v2.npy",
+	model_path: str | Path = "ml_engine/training/checkpoints/convlstm_ice_v2.pt",
 	forecast_days: int = 7,
 ) -> np.ndarray:
 	"""

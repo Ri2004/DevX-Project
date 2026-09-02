@@ -1,8 +1,11 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
 python-dotenv
 numpy
+requests
+sqlalchemy
 xarray
 scikit-learn
 xgboost

@@ -1,12 +1,29 @@
 """FastAPI REST API for Antarctic navigation decision support."""
 
 import sys
+import json
+import logging
+import time
+import json
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
 import numpy as np
+from ml_engine.models.iceberg_drift import IcebergDriftModel
+from backend.app.llm_agent import generate_captain_briefing
+from routing.route_comparator import generate_route_options
+from backend.core.config import settings
+from backend.core.security import require_api_key
+from backend.db.session import SessionLocal, init_db
+from backend.db.models import RouteAudit
+from data_pipeline.ingest_environmental import fetch_usnic_icebergs, forecast_active_icebergs
+
+ACTIVE_ICEBERG_GRID_POSITIONS = [(155, 205)]
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,17 +38,46 @@ except ImportError:
 
 
 app = FastAPI(
-	title="Antarctic Navigation Decision Support API",
+	title=settings.PROJECT_NAME,
 	version="1.0.0",
 	description="Real-time ice forecasting and ship route optimization for Antarctic operations"
 )
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=settings.CORS_ORIGINS,
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
+init_db()
+
+logger = logging.getLogger("navigation_api")
+logging.basicConfig(level=logging.INFO)
+request_times: dict[str, deque[float]] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def request_logging_and_rate_limit(request, call_next):
+	client = request.client.host if request.client else "unknown"
+	now = time.monotonic()
+	times = request_times[client]
+	while times and now - times[0] > 60:
+		times.popleft()
+	if len(times) >= 120:
+		return JSONResponse({"detail": "Rate limit exceeded"}, status_code=429)
+	times.append(now)
+	started = time.perf_counter()
+	response = await call_next(request)
+	logger.info(json.dumps({"method": request.method, "path": request.url.path, "status": response.status_code, "duration_ms": round((time.perf_counter() - started) * 1000, 2)}))
+	return response
 
 
 class RouteRequest(BaseModel):
 	"""Request model for route computation."""
-	start_coords: list  # [row, col] in grid
-	goal_coords: list   # [row, col] in grid
-	forecast_day: int = 1  # 1 to 7
+	start_coords: list[int] = Field(..., min_length=2, max_length=2)
+	goal_coords: list[int] = Field(..., min_length=2, max_length=2)
+	forecast_day: int = Field(1, ge=1, le=7)
+	vessel_ice_class: Optional[str] = Field("PC5", description="Polar Class: PC1, PC3, PC5, PC7, or Standard")
 
 
 class Route(BaseModel):
@@ -41,6 +87,8 @@ class Route(BaseModel):
 	distance: float
 	ice_risk_score: float
 	estimated_fuel_tons: float
+	minimum_speed_knots: float = 0.0
+	peak_power_kw: float = 0.0
 
 
 class RouteResponse(BaseModel):
@@ -50,6 +98,15 @@ class RouteResponse(BaseModel):
 	destination: list
 	routes: list[Route]
 	ice_grid_stats: dict
+	vessel_ice_class: str = "PC5"
+
+
+class CopilotRequest(BaseModel):
+	"""Request model for captain briefing generation."""
+	query: str
+	start_coords: list
+	goal_coords: list
+	forecast_day: int = 1
 
 
 @app.get("/")
@@ -69,7 +126,7 @@ def health_check() -> dict:
 
 
 @app.post("/api/v1/compute-routes")
-def compute_routes(req: RouteRequest) -> RouteResponse:
+def compute_routes(req: RouteRequest, _: None = Depends(require_api_key)) -> RouteResponse:
 	"""
 	Computes Safest, Fuel-Optimal, and Shortest routes over ML-predicted ice fields.
 	
@@ -129,39 +186,77 @@ def compute_routes(req: RouteRequest) -> RouteResponse:
 		"grid_shape": day_grid.shape,
 	}
 	
-	# Generate 3 example routes (placeholder until routing algorithms implemented)
-	# In production, these would use dynamic_astar with different cost functions
+	active_icebergs = fetch_usnic_icebergs()
+	iceberg_positions = [
+		(int(item["grid_row"]), int(item["grid_column"]))
+		for item in active_icebergs
+		if "grid_row" in item and "grid_column" in item
+	] or ACTIVE_ICEBERG_GRID_POSITIONS
+	route_options = generate_route_options(forecast_grid, start, goal, iceberg_positions, req.vessel_ice_class or "PC5")
+	route_labels = {"safest": "Safest", "fuel_optimal": "Fuel-Optimal", "shortest": "Shortest"}
 	routes = [
-		Route(
-			name="Safest",
-			path=[[start[0], start[1]], [goal[0], goal[1]]],  # Placeholder straight line
-			distance=np.sqrt((goal[0]-start[0])**2 + (goal[1]-start[1])**2) * 25.0,  # km (25km per grid cell)
-			ice_risk_score=float(day_grid[start[0]:goal[0], start[1]:goal[1]].mean()),
-			estimated_fuel_tons=50.0,
-		),
-		Route(
-			name="Fuel-Optimal",
-			path=[[start[0], start[1]], [goal[0], goal[1]]],
-			distance=np.sqrt((goal[0]-start[0])**2 + (goal[1]-start[1])**2) * 25.0,
-			ice_risk_score=float(day_grid[start[0]:goal[0], start[1]:goal[1]].mean()) * 1.1,
-			estimated_fuel_tons=40.0,
-		),
-		Route(
-			name="Shortest",
-			path=[[start[0], start[1]], [goal[0], goal[1]]],
-			distance=np.sqrt((goal[0]-start[0])**2 + (goal[1]-start[1])**2) * 25.0,
-			ice_risk_score=float(day_grid[start[0]:goal[0], start[1]:goal[1]].mean()) * 1.2,
-			estimated_fuel_tons=60.0,
-		),
+		Route(name=route_labels[name], path=[list(point) for point in option["path"]], distance=option["metrics"]["distance_km"], ice_risk_score=option["metrics"]["avg_ice_risk"], estimated_fuel_tons=option["metrics"]["estimated_fuel_tons"], minimum_speed_knots=option["metrics"]["minimum_speed_knots"], peak_power_kw=option["metrics"]["peak_power_kw"])
+		for name, option in route_options.items()
 	]
 	
-	return RouteResponse(
+	result = RouteResponse(
 		forecast_day=req.forecast_day,
 		origin=list(start),
 		destination=list(goal),
 		routes=routes,
 		ice_grid_stats=grid_stats,
+		vessel_ice_class=req.vessel_ice_class or "PC5",
 	)
+	with SessionLocal() as session:
+		session.add(RouteAudit(
+			forecast_day=req.forecast_day,
+			vessel_ice_class=req.vessel_ice_class or "PC5",
+			origin=json.dumps(list(start)),
+			destination=json.dumps(list(goal)),
+			iceberg_positions=json.dumps(iceberg_positions),
+			selected_route="",
+			estimated_fuel_tons=min((route.estimated_fuel_tons for route in routes if route.path), default=0.0),
+		))
+		session.commit()
+	return result
+
+
+@app.get("/api/v1/forecast/icebergs")
+def get_iceberg_forecasts() -> dict:
+	"""Return a seven-day drift trajectory for the tracked sample iceberg."""
+	active = forecast_active_icebergs()
+	if active:
+		return {"icebergs": active}
+	model = IcebergDriftModel()
+	wind_u = np.array([2.5, 3.0, 1.5, -0.5, -2.0, 1.0, 3.5])
+	wind_v = np.array([1.0, 1.2, 0.8, 2.0, 1.5, -0.5, 0.0])
+	current_u = np.array([0.2, 0.25, 0.22, 0.18, 0.15, 0.2, 0.25])
+	current_v = np.array([0.05, 0.08, 0.06, 0.04, 0.02, 0.05, 0.07])
+	trajectory = model.predict_trajectory(-69.5, 39.5, wind_u, wind_v, current_u, current_v)
+	return {
+		"iceberg_id": "A-23a_TRACK",
+		"initial_position": {"lat": -69.5, "lon": 39.5},
+		"grid_position": list(ACTIVE_ICEBERG_GRID_POSITIONS[0]),
+		"trajectory": trajectory,
+	}
+
+
+@app.get("/api/v1/forecast/sea-ice")
+def get_sea_ice_forecast_metadata() -> dict:
+	"""Return metadata and summary statistics for the seven-day forecast."""
+	forecast_path = PROJECT_ROOT / "data" / "processed" / "ice_forecast_7day.npy"
+	if not forecast_path.exists():
+		if not HAS_ML:
+			raise HTTPException(status_code=500, detail="ML pipeline unavailable")
+		generate_7day_forecast()
+	forecast_grid = np.load(forecast_path)
+	return {
+		"forecast_days": int(forecast_grid.shape[0]),
+		"grid_shape": list(forecast_grid.shape[1:]),
+		"min_concentration": float(forecast_grid.min()),
+		"max_concentration": float(forecast_grid.max()),
+		"mean_concentration": float(forecast_grid.mean()),
+	}
 
 
 @app.get("/api/v1/forecast/{day}")
@@ -196,6 +291,22 @@ def get_forecast(day: int) -> dict:
 		"max_concentration": float(day_data.max()),
 		"min_concentration": float(day_data.min()),
 		"high_risk_area_fraction": float((day_data > 0.8).sum() / day_data.size),
+	}
+
+
+@app.post("/api/v1/copilot/briefing")
+def copilot_briefing(req: CopilotRequest, _: None = Depends(require_api_key)) -> dict:
+	"""Generate an operational briefing from a live route evaluation."""
+	route_response = compute_routes(RouteRequest(
+		start_coords=req.start_coords,
+		goal_coords=req.goal_coords,
+		forecast_day=req.forecast_day,
+	))
+	briefing = generate_captain_briefing(req.query, route_response.model_dump())
+	return {
+		"query": req.query,
+		"briefing": briefing,
+		"route_summary": route_response,
 	}
 
 
