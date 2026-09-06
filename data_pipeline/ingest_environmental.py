@@ -37,13 +37,10 @@ def fetch_wind_current_vectors(days: int = 7) -> dict[str, np.ndarray]:
                 raise ValueError(f"{name} contains {value.shape[0]} days; need {days}")
         return {name: value[:days] for name, value in result.items()}
 
-    shape = (days, *GRID_SHAPE)
-    return {
-        "wind_u": np.zeros(shape, dtype=np.float32),
-        "wind_v": np.zeros(shape, dtype=np.float32),
-        "current_u": np.zeros(shape, dtype=np.float32),
-        "current_v": np.zeros(shape, dtype=np.float32),
-    }
+    raise FileNotFoundError(
+        f"Missing real environmental vectors at {configured_file}; "
+        "zero-valued synthetic vectors are disabled"
+    )
 
 
 def fetch_usnic_icebergs(url: str | None = None) -> list[dict[str, object]]:

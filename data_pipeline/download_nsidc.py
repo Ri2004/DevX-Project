@@ -97,13 +97,14 @@ def download_nsidc_frames(
         )
         try:
             response = session.get(url, timeout=60)
-            response.raise_for_status()
-            target.write_bytes(response.content)
+            raise FileNotFoundError(
+                f"Could not obtain {days} real NSIDC frames in {output_path}; "
+                "synthetic sea-ice generation is disabled"
+            )
             downloaded.append(target)
             print(f"Downloaded {filename}")
         except (HTTPError, URLError, TimeoutError, OSError) as error:
-            if target.exists():
-                target.unlink()
+            raise RuntimeError("FORCE_SYNTHETIC is disabled: training requires real sea-ice observations")
             print(f"Failed {filename} from {url}: {error}")
 
     if len(downloaded) < days:

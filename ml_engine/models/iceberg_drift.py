@@ -1,8 +1,14 @@
-"""Hybrid kinematic and residual model for iceberg drift."""
+"""Hybrid trained-regressor and kinematic model for iceberg drift."""
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
+import xgboost as xgb
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CHECKPOINT_DIR = PROJECT_ROOT / "ml_engine" / "training" / "checkpoints" / "iceberg_drift"
 
 
 class IcebergDriftModel:
@@ -11,6 +17,17 @@ class IcebergDriftModel:
 	def __init__(self, c_wind: float = 0.02, c_current: float = 0.85):
 		self.c_wind = c_wind
 		self.c_current = c_current
+		self.latitude_model = self._load_model("latitude")
+		self.longitude_model = self._load_model("longitude")
+
+	@staticmethod
+	def _load_model(target: str) -> xgb.XGBRegressor | None:
+		path = CHECKPOINT_DIR / f"{target}.json"
+		if not path.exists():
+			return None
+		model = xgb.XGBRegressor()
+		model.load_model(path)
+		return model
 
 	def predict_trajectory(
 		self,
@@ -42,8 +59,19 @@ class IcebergDriftModel:
 			dist_east_km = v_east * seconds_per_day / 1000.0
 			dist_north_km = v_north * seconds_per_day / 1000.0
 			km_per_deg_lon = 111.0 * np.cos(np.radians(curr_lat))
-			curr_lat += dist_north_km / 111.0
-			curr_lon += dist_east_km / (km_per_deg_lon if abs(km_per_deg_lon) > 0.01 else 1.0)
+			physics_lat = curr_lat + dist_north_km / 111.0
+			physics_lon = curr_lon + dist_east_km / (km_per_deg_lon if abs(km_per_deg_lon) > 0.01 else 1.0)
+			if self.latitude_model is not None and self.longitude_model is not None:
+				features = np.asarray([[
+					curr_lat, curr_lon, curr_lat, curr_lon, 0.0, 0.0,
+					1.0, np.hypot(v_east, v_north), v_north, v_east,
+					np.hypot(v_east, v_north), np.hypot(v_east, v_north),
+					2026.0, 1.0, 1.0,
+				]], dtype=np.float32)
+				curr_lat = float(self.latitude_model.predict(features)[0])
+				curr_lon = float(self.longitude_model.predict(features)[0])
+			else:
+				curr_lat, curr_lon = physics_lat, physics_lon
 
 			trajectory.append({
 				"day": index + 1,
