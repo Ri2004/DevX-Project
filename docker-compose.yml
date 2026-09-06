@@ -15,24 +15,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    depends_on:
-      - postgis
-      - redis
   frontend:
     build: ./frontend
     ports:
       - "5173:5173"
     depends_on:
       - backend
-  postgis:
-    image: postgis/postgis:16-3.4
-    environment:
-      POSTGRES_DB: antarctic
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"

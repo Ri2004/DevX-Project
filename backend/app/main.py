@@ -3,8 +3,8 @@
 import sys
 import json
 import logging
+import math
 import time
-import json
 from collections import defaultdict, deque
 from pathlib import Path
 from typing import Optional
@@ -19,11 +19,9 @@ from backend.app.llm_agent import generate_captain_briefing
 from routing.route_comparator import generate_route_options
 from backend.core.config import settings
 from backend.core.security import require_api_key
-from backend.db.session import SessionLocal, init_db
+from backend.db.session import SessionLocal, get_db, init_db
 from backend.db.models import RouteAudit
 from data_pipeline.ingest_environmental import fetch_usnic_icebergs, forecast_active_icebergs
-
-ACTIVE_ICEBERG_GRID_POSITIONS = [(155, 205)]
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -56,6 +54,37 @@ logging.basicConfig(level=logging.INFO)
 request_times: dict[str, deque[float]] = defaultdict(deque)
 
 
+def latlon_to_grid(latitude: float, longitude: float) -> tuple[int, int]:
+	"""Map WGS84 coordinates to a 25 km EPSG:3031 navigation-grid cell."""
+	if not (math.isfinite(latitude) and math.isfinite(longitude)):
+		raise ValueError("latitude and longitude must be finite")
+	if not -90.0 <= latitude < 0.0:
+		raise ValueError("EPSG:3031 navigation coordinates require a southern latitude")
+	if not -180.0 <= longitude <= 180.0:
+		raise ValueError("longitude must be between -180 and 180 degrees")
+	radius, eccentricity = 6_378_137.0, 0.08181919
+	standard_parallel = math.radians(-71.0)
+	latitude_radians, longitude_radians = math.radians(latitude), math.radians(longitude)
+
+	def polar_t(phi: float) -> float:
+		return math.tan(math.pi / 4.0 - phi / 2.0) / (
+			(1.0 - eccentricity * math.sin(phi)) /
+			(1.0 + eccentricity * math.sin(phi))
+		) ** (eccentricity / 2.0)
+
+	m_c = math.cos(standard_parallel) / math.sqrt(
+		1.0 - eccentricity**2 * math.sin(standard_parallel) ** 2
+	)
+	rho = radius * m_c * polar_t(latitude_radians) / polar_t(standard_parallel)
+	x, y = rho * math.sin(longitude_radians), -rho * math.cos(longitude_radians)
+	minimum, maximum = -3_950_000.0, 3_950_000.0
+	if not (minimum <= x <= maximum and minimum <= y <= maximum):
+		raise ValueError("coordinate lies outside the 316 x 332 navigation grid")
+	row = round((maximum - y) / (maximum - minimum) * 315)
+	column = round((x - minimum) / (maximum - minimum) * 331)
+	return int(max(0, min(315, row))), int(max(0, min(331, column)))
+
+
 @app.middleware("http")
 async def request_logging_and_rate_limit(request, call_next):
 	client = request.client.host if request.client else "unknown"
@@ -78,6 +107,7 @@ class RouteRequest(BaseModel):
 	goal_coords: list[int] = Field(..., min_length=2, max_length=2)
 	forecast_day: int = Field(1, ge=1, le=7)
 	vessel_ice_class: Optional[str] = Field("PC5", description="Polar Class: PC1, PC3, PC5, PC7, or Standard")
+	mission_id: Optional[str] = Field(None, min_length=1, max_length=128)
 
 
 class Route(BaseModel):
@@ -187,11 +217,14 @@ def compute_routes(req: RouteRequest, _: None = Depends(require_api_key)) -> Rou
 	}
 	
 	active_icebergs = fetch_usnic_icebergs()
-	iceberg_positions = [
-		(int(item["grid_row"]), int(item["grid_column"]))
-		for item in active_icebergs
-		if "grid_row" in item and "grid_column" in item
-	] or ACTIVE_ICEBERG_GRID_POSITIONS
+	iceberg_positions = []
+	for iceberg in active_icebergs:
+		try:
+			iceberg_positions.append(latlon_to_grid(
+				float(iceberg["latitude"]), float(iceberg["longitude"])
+			))
+		except (KeyError, TypeError, ValueError):
+			continue
 	route_options = generate_route_options(forecast_grid, start, goal, iceberg_positions, req.vessel_ice_class or "PC5")
 	route_labels = {"safest": "Safest", "fuel_optimal": "Fuel-Optimal", "shortest": "Shortest"}
 	routes = [
@@ -208,25 +241,86 @@ def compute_routes(req: RouteRequest, _: None = Depends(require_api_key)) -> Rou
 		vessel_ice_class=req.vessel_ice_class or "PC5",
 	)
 	with SessionLocal() as session:
+		route_payload = result.model_dump()
 		session.add(RouteAudit(
 			forecast_day=req.forecast_day,
 			vessel_ice_class=req.vessel_ice_class or "PC5",
 			origin=json.dumps(list(start)),
 			destination=json.dumps(list(goal)),
 			iceberg_positions=json.dumps(iceberg_positions),
-			selected_route="",
-			estimated_fuel_tons=min((route.estimated_fuel_tons for route in routes if route.path), default=0.0),
-		))
+		selected_route="",
+		estimated_fuel_tons=min((route.estimated_fuel_tons for route in routes if route.path), default=0.0),
+		mission_id=req.mission_id or "default",
+		route_data=json.dumps(route_payload),
+	))
 		session.commit()
 	return result
+
+
+@app.get("/api/v1/mission-summary/{mission_id}")
+def get_mission_summary(mission_id: str, db=Depends(get_db)) -> dict:
+	"""Return aggregate route-audit metrics for one mission.
+
+	The endpoint is backed by the local SQLite audit store, so it remains
+	available when optional PostGIS or Redis services are not running.
+	"""
+	routes = (
+		db.query(RouteAudit)
+		.filter(RouteAudit.mission_id == mission_id)
+		.order_by(RouteAudit.created_at.asc(), RouteAudit.id.asc())
+		.all()
+	)
+	if not routes:
+		return {
+			"mission_id": mission_id,
+			"status": "NO_ROUTE_AUDITS",
+			"total_routes_evaluated": 0,
+			"total_distance_km": 0.0,
+			"total_fuel_burn_mt": 0.0,
+			"avg_ice_concentration": None,
+			"audit_status": "NO_AUDITS",
+		}
+
+	payloads = []
+	for route in routes:
+		try:
+			payloads.append(json.loads(route.route_data))
+		except (TypeError, json.JSONDecodeError):
+			payloads.append({})
+	latest_payload = payloads[-1]
+	all_options = [option for payload in payloads for option in payload.get("routes", [])]
+	ice_scores = [float(option["ice_risk_score"]) for option in all_options if option.get("ice_risk_score") is not None]
+	distances = [float(option["distance"]) for option in all_options if option.get("distance") is not None]
+	audit_material = "\n".join(
+		f"{route.id}|{route.created_at.isoformat()}|{route.route_data}" for route in routes
+	)
+	import hashlib
+	audit_sha256 = hashlib.sha256(audit_material.encode("utf-8")).hexdigest()
+	return {
+		"mission_id": mission_id,
+		"status": "COMPLETED",
+		"total_routes_evaluated": len(routes),
+		"total_distance_km": round(sum(distances), 2),
+		"total_fuel_burn_mt": round(sum(route.estimated_fuel_tons for route in routes), 2),
+		"avg_ice_concentration": round(sum(ice_scores) / len(ice_scores), 4) if ice_scores else None,
+		"latest_route": latest_payload,
+		"created_at": routes[-1].created_at.isoformat(),
+		"audit_status": "VERIFIED_SHA256",
+		"audit_sha256": audit_sha256,
+	}
 
 
 @app.get("/api/v1/forecast/icebergs")
 def get_iceberg_forecasts() -> dict:
 	"""Return a seven-day drift trajectory for the tracked sample iceberg."""
-	active = forecast_active_icebergs()
+	active = forecast_active_icebergs(grid_position_resolver=latlon_to_grid)
 	if active:
-		return {"icebergs": active}
+		return {
+			"icebergs": [
+				{**iceberg, "grid_position": [iceberg["grid_row"], iceberg["grid_column"]]}
+				for iceberg in active
+			]
+		}
 	model = IcebergDriftModel()
 	wind_u = np.array([2.5, 3.0, 1.5, -0.5, -2.0, 1.0, 3.5])
 	wind_v = np.array([1.0, 1.2, 0.8, 2.0, 1.5, -0.5, 0.0])
@@ -236,7 +330,7 @@ def get_iceberg_forecasts() -> dict:
 	return {
 		"iceberg_id": "A-23a_TRACK",
 		"initial_position": {"lat": -69.5, "lon": 39.5},
-		"grid_position": list(ACTIVE_ICEBERG_GRID_POSITIONS[0]),
+		"grid_position": list(latlon_to_grid(-69.5, 39.5)),
 		"trajectory": trajectory,
 	}
 

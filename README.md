@@ -4,7 +4,7 @@ A research-oriented Antarctic navigation platform combining sea-ice forecasting,
 
 ## Architecture
 
-- `data_pipeline/`: Fetches, aligns, and quality-controls environmental data.
+- `data_pipeline/`: Loads NSIDC sea-ice frames and local ERA5/USNIC inputs.
 - `ml_engine/`: Forecasting, drift modeling, training, inference, and evaluation.
 - `routing/`: Physics-informed cost modeling and time-dependent A* routing.
 - `backend/`: FastAPI service exposing forecasts, routes, mission summaries, and explanatory briefings.
@@ -14,8 +14,10 @@ A research-oriented Antarctic navigation platform combining sea-ice forecasting,
 
 ## Quick start
 
-1. Copy `.env.example` to `.env` and provide service credentials.
-2. Start infrastructure with `docker compose up --build`.
-3. Use the sample data in `data/sample/` for offline demonstrations.
+1. Copy `.env.example` to `.env`; NASA/USNIC credentials are optional for offline mode.
+2. Generate the deterministic offline fixtures with `python data_pipeline/generate_missing_artifacts.py`.
+3. Start the API with `docker compose up --build`, or run `python -m uvicorn backend.app.main:app --reload`.
 
-The routing engine remains deterministic; the optional LLM agent provides explanations only.
+The routing engine remains deterministic; the briefing generator provides explanations only.
+SQLite is the built-in route-audit store.  The generated offline fixtures are demonstrations,
+not real environmental observations or operational forecasts.

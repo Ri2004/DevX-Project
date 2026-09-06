@@ -10,3 +10,4 @@ xarray
 scikit-learn
 xgboost
 torch
+httpx2

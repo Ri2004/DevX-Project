@@ -4,6 +4,7 @@ import csv
 import io
 import os
 from pathlib import Path
+from typing import Callable
 from urllib.request import Request, urlopen
 
 import numpy as np
@@ -83,14 +84,23 @@ def fetch_usnic_icebergs(url: str | None = None) -> list[dict[str, object]]:
     return observations
 
 
-def forecast_active_icebergs(days: int = 7) -> list[dict[str, object]]:
+def forecast_active_icebergs(
+    days: int = 7,
+    grid_position_resolver: Callable[[float, float], tuple[int, int]] | None = None,
+) -> list[dict[str, object]]:
     """Attach a seven-day drift trajectory to each current USNIC observation."""
     icebergs = fetch_usnic_icebergs()
     vectors = fetch_wind_current_vectors(days)
     model = IcebergDriftModel()
     for iceberg in icebergs:
-        row = int(iceberg.get("grid_row", 0))
-        column = int(iceberg.get("grid_column", 0))
+        if grid_position_resolver is not None:
+            row, column = grid_position_resolver(
+                float(iceberg["latitude"]), float(iceberg["longitude"])
+            )
+            iceberg["grid_row"], iceberg["grid_column"] = row, column
+        else:
+            row = int(iceberg.get("grid_row", 0))
+            column = int(iceberg.get("grid_column", 0))
         select = lambda values: values[:, row, column] if values.ndim == 3 else values
         iceberg["trajectory"] = model.predict_trajectory(
             float(iceberg["latitude"]), float(iceberg["longitude"]),

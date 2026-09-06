@@ -20,3 +20,5 @@ class RouteAudit(Base):
     iceberg_positions: Mapped[str] = mapped_column(Text, default="[]")
     selected_route: Mapped[str] = mapped_column(String(32), default="")
     estimated_fuel_tons: Mapped[float] = mapped_column(Float, default=0.0)
+    mission_id: Mapped[str] = mapped_column(String(128), default="default")
+    route_data: Mapped[str] = mapped_column(Text, default="{}")

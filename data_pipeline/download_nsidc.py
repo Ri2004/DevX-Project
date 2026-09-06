@@ -22,16 +22,56 @@ def extract_nsidc_array(path: str | Path) -> np.ndarray:
     except ImportError as error:
         raise ImportError("Install xarray to extract NetCDF NSIDC data") from error
     with xr.open_dataset(path) as dataset:
-        for variable in ("seaice_conc", "cdr_seaice_conc"):
+        for variable in ("seaice_conc", "cdr_seaice_conc", "F17_ICECON", "F18_ICECON"):
             if variable in dataset:
                 return np.asarray(dataset[variable].squeeze().values, dtype=np.float32)
-        raise ValueError("NetCDF contains neither seaice_conc nor cdr_seaice_conc")
+        for variable in dataset.data_vars:
+            values = dataset[variable].squeeze()
+            if values.ndim == 2:
+                return np.asarray(values.values, dtype=np.float32)
+        raise ValueError("NetCDF contains no two-dimensional sea-ice concentration variable")
 
 
 DEFAULT_URL_TEMPLATE = (
     "https://noaadata.apps.nsidc.org/NOAA/G02135/south/daily/{year}/"
     "{month:02d}_{month_name}/{filename}"
 )
+
+
+def download_and_save_nsidc(year: int = 2024, month: int = 1, day: int = 1) -> Path:
+    """Download one authenticated NSIDC-0081 NetCDF frame, or use a local copy.
+
+    No synthetic data is generated: when credentials and local data are both
+    unavailable, a ``FileNotFoundError`` makes the operational dependency clear.
+    """
+    output_path = PROJECT_ROOT / "data" / "raw" / "nsidc"
+    output_path.mkdir(parents=True, exist_ok=True)
+    filename = f"NSIDC0081_SEAICE_PS_S25km_{year}{month:02d}{day:02d}_v2.0.nc"
+    target = output_path / filename
+    if target.exists() and target.stat().st_size > 0:
+        return target
+    user, password = settings.NASA_EARTHDATA_USER, settings.NASA_EARTHDATA_PASS
+    if user and password:
+        url = f"https://n5eil01u.ecs.nsidc.org/PM/NSIDC-0081.002/{year}.{month:02d}.{day:02d}/{filename}"
+        temporary = target.with_suffix(".nc.part")
+        try:
+            with requests.Session() as session:
+                session.auth = (user, password)
+                with session.get(url, stream=True, timeout=30) as response:
+                    response.raise_for_status()
+                    with temporary.open("wb") as output_file:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if chunk:
+                                output_file.write(chunk)
+            temporary.replace(target)
+            return target
+        except requests.RequestException as error:
+            temporary.unlink(missing_ok=True)
+            print(f"Network error during NSIDC pull: {error}")
+    local_files = sorted(path for path in output_path.glob("*.nc") if path.stat().st_size > 0)
+    if local_files:
+        return local_files[0]
+    raise FileNotFoundError("No authenticated NSIDC download or local NetCDF frame is available")
 
 
 def generate_synthetic_sea_ice_frames(days: int = 30, output_dir: str | Path = "data/raw/nsidc") -> list[Path]:
@@ -73,6 +113,15 @@ def download_nsidc_frames(
     output_path.mkdir(parents=True, exist_ok=True)
     template = url_template or os.environ.get("NSIDC_URL_TEMPLATE", DEFAULT_URL_TEMPLATE)
     filename_template = os.environ.get("NSIDC_FILENAME_TEMPLATE", "S_{date}_concentration_v3.0.tif")
+    local_files = sorted(
+        path for suffix in ("*.nc", "*.nc4", "*.tif", "*.tiff")
+        for path in output_path.glob(suffix)
+        if path.stat().st_size > 0
+    )
+    # Offline operation must not attempt a network request when a complete
+    # local set has already been supplied.
+    if len(local_files) >= days:
+        return local_files[:days]
     downloaded: list[Path] = []
     session = requests.Session()
     session.headers.update({"User-Agent": "Mozilla/5.0 AntarcticNavigation/1.0"})
@@ -96,24 +145,25 @@ def download_nsidc_frames(
             filename=filename,
         )
         try:
-            response = session.get(url, timeout=60)
-            raise FileNotFoundError(
-                f"Could not obtain {days} real NSIDC frames in {output_path}; "
-                "synthetic sea-ice generation is disabled"
-            )
+            response = session.get(url, stream=True, timeout=60)
+            response.raise_for_status()
+            with target.open("wb") as output_file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        output_file.write(chunk)
             downloaded.append(target)
             print(f"Downloaded {filename}")
-        except (HTTPError, URLError, TimeoutError, OSError) as error:
-            raise RuntimeError("FORCE_SYNTHETIC is disabled: training requires real sea-ice observations")
+        except (requests.RequestException, HTTPError, URLError, TimeoutError, OSError) as error:
             print(f"Failed {filename} from {url}: {error}")
 
     if len(downloaded) < days:
-        local_files = sorted(path for suffix in ("*.nc", "*.nc4", "*.tif", "*.tiff") for path in output_path.glob(suffix))
         if len(local_files) >= days:
             print(f"Network unavailable; using {days} local NSIDC files")
             return local_files[:days]
-        print("No complete local NSIDC set found; generating offline synthetic frames")
-        return generate_synthetic_sea_ice_frames(days, output_dir)
+        raise FileNotFoundError(
+            f"Could not obtain {days} real NSIDC frames in {output_path}; "
+            "synthetic sea-ice generation is disabled"
+        )
     return downloaded
 
 
