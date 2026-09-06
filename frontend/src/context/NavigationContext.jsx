@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   computeRoutes,
   getActiveIcebergs,
@@ -20,6 +20,25 @@ export function NavigationProvider({ children }) {
   const [isComputing, setIsComputing] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState({ connected: false, checking: true });
+
+  // Admin authentication state for restricted operational settings
+  const [isAdminAuth, setIsAdminAuth] = useState(() => {
+    return localStorage.getItem('himyatra_admin_auth') === 'true';
+  });
+
+  const adminLogin = (email, password) => {
+    if (email?.trim()?.toLowerCase() === 'devx2026@gmail.com' && password === 'rss') {
+      setIsAdminAuth(true);
+      localStorage.setItem('himyatra_admin_auth', 'true');
+      return { success: true };
+    }
+    return { success: false, error: 'Invalid admin credentials' };
+  };
+
+  const adminLogout = () => {
+    setIsAdminAuth(false);
+    localStorage.removeItem('himyatra_admin_auth');
+  };
 
   // Operational anomaly settings
   const [iceConcentrationAlert, setIceConcentrationAlert] = useState(70);
@@ -106,6 +125,9 @@ export function NavigationProvider({ children }) {
         setSafetyRadiusNM,
         maxHullStress,
         setMaxHullStress,
+        isAdminAuth,
+        adminLogin,
+        adminLogout,
       }}
     >
       {children}

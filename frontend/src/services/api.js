@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import {
   MOCK_ICEBERGS,
   MOCK_FORECAST_DAYS,
@@ -76,7 +76,6 @@ export async function getActiveIcebergs() {
   if (!offlineMode) {
     try {
       const client = createApiClient();
-      // Try /api/v1/forecast/icebergs first as present in backend
       const res = await client.get('/api/v1/forecast/icebergs');
       if (res.data?.icebergs) {
         return res.data.icebergs;
@@ -98,8 +97,8 @@ export async function getActiveIcebergs() {
  * Compute routes endpoint: POST /api/v1/compute-routes
  */
 export async function computeRoutes({
-  startCoords, // [lat, lon] or [row, col]
-  goalCoords,  // [lat, lon] or [row, col]
+  startCoords,
+  goalCoords,
   forecastDay = 1,
   vesselIceClass = 'PC5',
   missionId = 'HIM-2026-001'
@@ -147,7 +146,7 @@ export async function getMissionSummary(missionId = 'default') {
   if (!offlineMode) {
     try {
       const client = createApiClient();
-      const res = await client.get(/api/v1/mission-summary/);
+      const res = await client.get('/api/v1/mission-summary/' + encodeURIComponent(missionId));
       return res.data;
     } catch (err) {
       console.warn('[HimYatra API] Mission summary fallback:', err.message);
@@ -175,9 +174,9 @@ export async function getCopilotBriefing(query, payload) {
       const client = createApiClient();
       const res = await client.post('/api/v1/copilot/briefing', {
         query,
-        start_coords: payload.startGrid || [150, 160],
-        goal_coords: payload.goalGrid || [120, 240],
-        forecast_day: payload.forecastDay || 1
+        start_coords: payload?.startGrid || [150, 160],
+        goal_coords: payload?.goalGrid || [120, 240],
+        forecast_day: payload?.forecastDay || 1
       });
       return res.data;
     } catch (err) {
@@ -188,10 +187,10 @@ export async function getCopilotBriefing(query, payload) {
   return {
     query,
     briefing: {
-      headline: query ? Analysis for: "" : INITIAL_COPILOT_BRIEFING.headline,
+      headline: query ? 'Analysis for: "' + query + '"' : INITIAL_COPILOT_BRIEFING.headline,
       timestamp: new Date().toISOString(),
       classification: 'OFFICIAL / NCPOR POLAR MISSION ADVISORY',
-      summary: Evaluated conditions for Day  with Polar Class . Vessel hull stresses remain well within safety margins on the Safest trajectory. Continuous Lindqvist engine assessment predicts zero besetting probability.,
+      summary: 'Evaluated conditions for Day ' + (payload?.forecastDay || 1) + ' with Polar Class ' + (payload?.vesselIceClass || 'PC5') + '. Vessel hull stresses remain well within safety margins on the Safest trajectory. Continuous Lindqvist engine assessment predicts zero besetting probability.',
       advisories: INITIAL_COPILOT_BRIEFING.advisories
     }
   };

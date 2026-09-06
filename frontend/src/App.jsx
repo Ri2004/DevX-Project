@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { NavigationProvider, useNavigation } from './context/NavigationContext';
 import { Navbar } from './components/Navbar';
@@ -6,18 +6,22 @@ import { LandingPage } from './views/LandingPage';
 import { AntarcticMap } from './views/AntarcticMap';
 import { Dashboard } from './views/Dashboard';
 import { Visualizations } from './views/Visualizations';
+import { MissionArchitecture } from './views/MissionArchitecture';
+import { PolarNews } from './views/PolarNews';
 import { Settings } from './views/Settings';
-import { Shield, Radio, Heart } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 function ViewRouter() {
   const { currentTab } = useNavigation();
 
   return (
-    <div className="flex-1 w-full">
+    <div className="flex-1 w-full flex flex-col">
       {currentTab === 'landing' && <LandingPage />}
       {currentTab === 'map' && <AntarcticMap />}
       {currentTab === 'dashboard' && <Dashboard />}
       {currentTab === 'visualizations' && <Visualizations />}
+      {currentTab === 'architecture' && <MissionArchitecture />}
+      {currentTab === 'news' && <PolarNews />}
       {currentTab === 'settings' && <Settings />}
     </div>
   );
@@ -27,28 +31,31 @@ export default function App() {
   return (
     <ThemeProvider>
       <NavigationProvider>
-        <div className="min-h-screen flex flex-col bg-midnight text-white light:bg-white light:text-ocean-navy transition-colors duration-200">
-          {/* Top Persistent Navigation Bar */}
+        <div className="min-h-screen w-full flex flex-col bg-midnight text-white light:bg-white light:text-ocean-navy transition-colors duration-200 overflow-x-hidden">
+          {/* Top Persistent Official Navigation Bar */}
           <Navbar />
 
-          {/* Main Dynamic Viewport */}
-          <main className="flex-1 flex flex-col">
+          {/* Main Content Area */}
+          <main className="flex-1 w-full">
             <ViewRouter />
           </main>
 
-          {/* Persistent Footer */}
-          <footer className="border-t border-slate-border/40 light:border-slate-light-border py-4 px-6 bg-ocean-navy/80 light:bg-slate-50 text-xs text-slate-400 select-none">
+          {/* Persistent Static Footer (Page scrolls under) */}
+          <footer className="sticky bottom-0 z-30 w-full border-t border-slate-700/80 light:border-slate-200 py-3 px-4 sm:px-8 bg-ocean-navy/95 light:bg-slate-50/95 backdrop-blur-md text-xs text-slate-400 select-none shadow-md">
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-[11px]">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white light:text-ocean-navy">HimYatra</span>
-                <span>— The Polar Journey</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-ice-cyan light:text-research-blue">SIH26059</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-ice-cyan light:text-research-blue font-semibold">
+                  Ministry of Earth Sciences (MoES)
+                </span>
+                <span className="text-slate-500">|</span>
+                <span>National Centre for Polar and Ocean Research (NCPOR)</span>
               </div>
-              <div className="flex items-center gap-4">
-                <span>MoES / NCPOR Antarctic Program</span>
-                <span className="text-slate-600">|</span>
-                <span>EPSG:3031 Coordinate Space</span>
+              <div className="flex items-center gap-3 text-slate-400">
+                <span>EPSG:3031 Coordinate Reference System</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-emerald-400 font-semibold">Operational DSS</span>
               </div>
             </div>
           </footer>

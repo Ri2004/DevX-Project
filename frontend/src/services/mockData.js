@@ -1,6 +1,6 @@
-﻿/**
+/**
  * Realistic Antarctic Datasets and Offline Simulation Engine
- * Conforms to SIH26059 scientific specifications (316x332 raster grid, EPSG:3031)
+ * Conforms to NCPOR-POLAR-EXPEDITION scientific specifications (316x332 raster grid, EPSG:3031)
  */
 
 export const MOCK_ICEBERGS = [
