@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import {
@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useNavigation } from '../context/NavigationContext';
 import { RouteSelector } from '../components/RouteSelector';
-import { CopilotDrawer } from '../components/CopilotDrawer';
 import { createRouteLayers } from '../layers/RouteDeckLayer';
 import { createIcebergLayers } from '../layers/IcebergDeckLayer';
 import { createSeaIceGridLayers } from '../layers/SeaIceGridLayer';
@@ -176,7 +175,7 @@ export function AntarcticMap() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="p-1.5 rounded-lg bg-ice-cyan text-midnight hover:bg-sky-400 font-bold transition-colors"
+                className="p-1.5 rounded-lg bg-ice-cyan text-midnight hover:bg-sky-400 font-bold transition-colors btn-glow-cyan"
                 title={isPlaying ? 'Pause timeline' : 'Play timeline'}
               >
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -207,8 +206,8 @@ export function AntarcticMap() {
                   }}
                   className={`py-1 px-1 rounded-lg text-center font-mono text-[11px] transition-all border ${
                     isSelected
-                      ? 'bg-ice-cyan text-midnight font-bold border-ice-cyan shadow-glow-cyan/40 scale-105'
-                      : 'bg-midnight/60 light:bg-slate-100 text-slate-300 light:text-slate-700 border-slate-border light:border-slate-light-border hover:border-ice-cyan/60'
+                      ? 'bg-ice-cyan text-midnight font-bold border-ice-cyan shadow-glow-cyan/40 scale-105 btn-glow-cyan'
+                      : 'bg-midnight/60 light:bg-slate-100 text-slate-300 light:text-slate-700 border-slate-border light:border-slate-light-border hover:border-ice-cyan/60 btn-glow-subtle'
                   }`}
                 >
                   <span className="block font-bold">T+{d.day}</span>
@@ -226,28 +225,28 @@ export function AntarcticMap() {
         <button
           onClick={zoomIn}
           title="Zoom In"
-          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg"
+          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg btn-glow"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={zoomOut}
           title="Zoom Out"
-          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg"
+          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg btn-glow"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           onClick={resetView}
           title="Reset Antarctic Perspective"
-          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg"
+          className="p-2 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border text-white light:text-ocean-navy hover:border-ice-cyan shadow-lg btn-glow"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
         <button
           onClick={() => setCopilotOpen(true)}
           title="Open Captain's AI Co-Pilot"
-          className="p-2 rounded-xl bg-ice-cyan text-midnight font-bold shadow-glow-cyan hover:bg-sky-400"
+          className="p-2 rounded-xl bg-ice-cyan text-midnight font-bold shadow-glow-cyan hover:bg-sky-400 btn-glow-cyan"
         >
           <Bot className="w-4 h-4" />
         </button>
@@ -257,7 +256,7 @@ export function AntarcticMap() {
       <div className="absolute bottom-6 right-4 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-ocean-navy/90 light:bg-white border border-slate-border light:border-slate-light-border shadow-xl text-xs font-mono">
         <button
           onClick={() => setShowSeaIce(!showSeaIce)}
-          className={`px-2 py-1 rounded-lg transition-all ${
+          className={`px-2 py-1 rounded-lg transition-all btn-glow-subtle ${
             showSeaIce ? 'bg-ice-cyan/20 text-ice-cyan border border-ice-cyan/40' : 'text-slate-500'
           }`}
         >
@@ -265,7 +264,7 @@ export function AntarcticMap() {
         </button>
         <button
           onClick={() => setShowIcebergs(!showIcebergs)}
-          className={`px-2 py-1 rounded-lg transition-all ${
+          className={`px-2 py-1 rounded-lg transition-all btn-glow-subtle ${
             showIcebergs ? 'bg-iceberg-red/20 text-iceberg-red border border-iceberg-red/40' : 'text-slate-500'
           }`}
         >
@@ -273,19 +272,13 @@ export function AntarcticMap() {
         </button>
         <button
           onClick={() => setShowRoutes(!showRoutes)}
-          className={`px-2 py-1 rounded-lg transition-all ${
+          className={`px-2 py-1 rounded-lg transition-all btn-glow-subtle ${
             showRoutes ? 'bg-route-safe/20 text-route-safe border border-route-safe/40' : 'text-slate-500'
           }`}
         >
           Routes
         </button>
       </div>
-
-      {/* Captain's AI Co-Pilot Drawer */}
-      <CopilotDrawer
-        isOpen={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
-      />
 
     </div>
   );

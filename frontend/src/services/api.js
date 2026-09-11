@@ -189,7 +189,7 @@ export async function getCopilotBriefing(query, payload) {
     briefing: {
       headline: query ? 'Analysis for: "' + query + '"' : INITIAL_COPILOT_BRIEFING.headline,
       timestamp: new Date().toISOString(),
-      classification: 'OFFICIAL / NCPOR POLAR MISSION ADVISORY',
+      classification: 'OFFICIAL / POLAR NAVIGATION MISSION ADVISORY',
       summary: 'Evaluated conditions for Day ' + (payload?.forecastDay || 1) + ' with Polar Class ' + (payload?.vesselIceClass || 'PC5') + '. Vessel hull stresses remain well within safety margins on the Safest trajectory. Continuous Lindqvist engine assessment predicts zero besetting probability.',
       advisories: INITIAL_COPILOT_BRIEFING.advisories
     }

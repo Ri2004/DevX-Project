@@ -1,6 +1,6 @@
 /**
  * Realistic Antarctic Datasets and Offline Simulation Engine
- * Conforms to NCPOR-POLAR-EXPEDITION scientific specifications (316x332 raster grid, EPSG:3031)
+ * Conforms to POLAR-EXPEDITION scientific specifications (316x332 raster grid, EPSG:3031)
  */
 
 export const MOCK_ICEBERGS = [
@@ -201,7 +201,7 @@ export const POLAR_CLASS_PERFORMANCE = [
 export const INITIAL_COPILOT_BRIEFING = {
   headline: 'Operational Navigation Directive: East Antarctic Coastal Corridor',
   timestamp: '2026-09-07T02:00:00Z',
-  classification: 'RESTRICTED / NCPOR MISSION CONTROL',
+  classification: 'RESTRICTED / POLAR MISSION CONTROL',
   summary: 'A 48-hour katabatic surge event is developing off Princess Elizabeth Land. High pack-ice deformation is anticipated across sector 70°S, 72°E.',
   advisories: [
     {

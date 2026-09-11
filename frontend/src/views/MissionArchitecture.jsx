@@ -87,15 +87,15 @@ export function MissionArchitecture() {
               <span className="text-xs font-mono font-bold text-ice-cyan light:text-research-blue uppercase tracking-widest">
                 Core Technical Blueprint
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-research-blue/30 text-ice-cyan border border-ice-cyan/30">
-                NCPOR Polar Engineering
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-research-blue/30 light:bg-ice-tint text-ice-cyan light:text-research-blue border border-ice-cyan/30 font-semibold">
+                Polar AI Marine Engineering
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white light:text-ocean-navy">
               Mission Architecture & Computational Core
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Mathematical foundations, hydrodynamic physics engines, machine learning pipelines, and spatial tensor models underpinning HimYatra.
+            <p className="text-xs sm:text-sm text-slate-400 light:text-slate-600">
+              Mathematical foundations, hydrodynamic physics engines, machine learning pipelines, and spatial tensor models underpinning HimYatra: The Polar Journey.
             </p>
           </div>
 

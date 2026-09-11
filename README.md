@@ -1,6 +1,8 @@
-# Antarctic Navigation System
+# Antarctic Sea Ice & Navigation DSS
 
-A research-oriented Antarctic navigation platform combining sea-ice forecasting, iceberg drift prediction, and deterministic route optimization for NCPOR mission planning.
+> **HimYatra: The Polar Journey**
+
+An AI/ML-enabled decision support platform capable of forecasting Antarctic sea ice concentration, predicting iceberg trajectories, and identifying safe and fuel-efficient navigation routes for research vessels using satellite, oceanographic, and meteorological datasets.
 
 ## Architecture
 
@@ -21,3 +23,4 @@ A research-oriented Antarctic navigation platform combining sea-ice forecasting,
 The routing engine remains deterministic; the briefing generator provides explanations only.
 SQLite is the built-in route-audit store.  The generated offline fixtures are demonstrations,
 not real environmental observations or operational forecasts.
+

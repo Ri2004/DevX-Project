@@ -31,7 +31,6 @@ import {
 import { useNavigation } from '../context/NavigationContext';
 import { useTheme } from '../context/ThemeContext';
 import { POLAR_CLASS_PERFORMANCE } from '../services/mockData';
-import { CopilotDrawer } from '../components/CopilotDrawer';
 
 export function Dashboard() {
   const {
@@ -40,7 +39,8 @@ export function Dashboard() {
     selectedRouteId,
     setSelectedRouteId,
     vesselIceClass,
-    copilotOpen,
+    setVesselIceClass,
+    setCurrentTab,
     setCopilotOpen
   } = useNavigation();
 
@@ -71,31 +71,61 @@ export function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8">
         
         {/* Dashboard Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/80 light:border-slate-200 pb-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-700/80 light:border-slate-200 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-ice-cyan light:text-research-blue uppercase tracking-widest">
                 Hydrodynamic Analytics
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-research-blue/40 text-ice-cyan border border-ice-cyan/30">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-research-blue/40 light:bg-ice-tint text-ice-cyan light:text-research-blue border border-ice-cyan/30 font-semibold">
                 IMO Polar Code Compliant
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white light:text-ocean-navy">
               Vessel Hydrodynamic & Route Performance Matrix
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400">
+            <p className="text-xs sm:text-sm text-slate-400 light:text-slate-600">
               Comparative telemetry across Lindqvist hull resistance models, fuel consumption curves, and ice concentration exposures.
             </p>
           </div>
 
-          <button
-            onClick={() => setCopilotOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-ice-cyan text-midnight font-bold text-xs shadow-sm hover:bg-sky-400 transition-all self-start sm:self-center"
-          >
-            <Bot className="w-4 h-4" />
-            <span>Consult AI Co-Pilot</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
+            {/* Dynamic Polar Class Selector */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-midnight/60 light:bg-slate-100 border border-slate-700/80 light:border-slate-200 text-xs font-mono">
+              <span className="text-[10px] text-slate-400 light:text-slate-600 px-2 uppercase font-semibold">Class:</span>
+              {['PC3', 'PC5', 'PC7', 'Standard'].map(cls => (
+                <button
+                  key={cls}
+                  onClick={() => setVesselIceClass(cls)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                    vesselIceClass === cls
+                      ? 'bg-ice-cyan text-midnight shadow-sm btn-glow-cyan'
+                      : 'text-slate-300 light:text-slate-600 hover:text-white light:hover:text-ocean-navy hover:bg-slate-800/50 light:hover:bg-slate-200'
+                  }`}
+                  title={`Simulate Class ${cls} hydrodynamics`}
+                >
+                  {cls}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentTab('map')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-700 light:border-slate-300 bg-ocean-navy/80 light:bg-white text-white light:text-ocean-navy text-xs font-semibold hover:border-ice-cyan transition-all cursor-pointer shadow-sm btn-glow"
+              title="View active trajectory on polar map"
+            >
+              <Compass className="w-3.5 h-3.5 text-ice-cyan light:text-research-blue" />
+              <span>View Map</span>
+            </button>
+
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-ice-cyan text-midnight font-bold text-xs shadow-sm hover:bg-sky-400 transition-all cursor-pointer btn-glow-cyan"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Consult AI</span>
+            </button>
+          </div>
         </div>
 
         {/* 4 Metric Cards */}
@@ -266,7 +296,7 @@ export function Dashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
               <thead>
-                <tr className="border-b border-slate-700 text-slate-400">
+                <tr className="border-b border-slate-700/80 light:border-slate-200 text-slate-400 light:text-slate-600">
                   <th className="py-3 px-4 font-semibold uppercase">Route Type</th>
                   <th className="py-3 px-4 font-semibold uppercase">Distance</th>
                   <th className="py-3 px-4 font-semibold uppercase">Fuel Burn</th>
@@ -276,7 +306,7 @@ export function Dashboard() {
                   <th className="py-3 px-4 font-semibold uppercase">Operational Directive</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/40">
+              <tbody className="divide-y divide-slate-700/40 light:divide-slate-200">
                 {comparisonData.map((row, idx) => {
                   const isSelected = selectedRouteId === (row.name.toLowerCase().replace('-', '_'));
                   return (
@@ -324,11 +354,6 @@ export function Dashboard() {
         </div>
 
       </div>
-
-      <CopilotDrawer
-        isOpen={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
-      />
     </div>
   );
 }

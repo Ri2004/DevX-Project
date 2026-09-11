@@ -24,7 +24,7 @@ import { DRIFT_VELOCITY_HISTOGRAM } from '../services/mockData';
 import { gridToLatLon } from '../utils/geoUtils';
 
 export function Visualizations() {
-  const { forecastDay } = useNavigation();
+  const { forecastDay, setForecastDay } = useNavigation();
   const { isDark } = useTheme();
 
   const [activeVizTab, setActiveVizTab] = useState('heatmap');
@@ -171,8 +171,8 @@ export function Visualizations() {
               onClick={() => setActiveVizTab('heatmap')}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeVizTab === 'heatmap'
-                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold'
-                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy'
+                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold btn-glow-cyan'
+                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy btn-glow-subtle'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -182,8 +182,8 @@ export function Visualizations() {
               onClick={() => setActiveVizTab('vectors')}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeVizTab === 'vectors'
-                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold'
-                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy'
+                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold btn-glow-cyan'
+                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy btn-glow-subtle'
               }`}
             >
               <Wind className="w-3.5 h-3.5" />
@@ -193,8 +193,8 @@ export function Visualizations() {
               onClick={() => setActiveVizTab('histogram')}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeVizTab === 'histogram'
-                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold'
-                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy'
+                  ? 'bg-ice-cyan text-midnight shadow-sm font-bold btn-glow-cyan'
+                  : 'text-slate-400 hover:text-white light:hover:text-ocean-navy btn-glow-subtle'
               }`}
             >
               <BarChart2 className="w-3.5 h-3.5" />
@@ -256,9 +256,33 @@ export function Visualizations() {
                 <h3 className="font-bold text-base text-white light:text-ocean-navy">
                   Matrix Rendering Controls
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Spectrophotometric transfer functions
+                <p className="text-xs text-slate-400 light:text-slate-600">
+                  Spectrophotometric transfer functions & temporal progression
                 </p>
+              </div>
+
+              {/* Dynamic 7-Day Horizon Selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300 light:text-slate-700">
+                  <span>Forecast Horizon:</span>
+                  <span className="font-mono text-ice-cyan font-bold">Day T+{forecastDay}</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {[1, 2, 3, 4, 5, 6, 7].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setForecastDay(d)}
+                      className={`py-1.5 rounded-lg text-center font-mono text-[11px] transition-all border cursor-pointer ${
+                        forecastDay === d
+                          ? 'bg-ice-cyan text-midnight font-bold border-ice-cyan shadow-sm scale-105 btn-glow-cyan'
+                          : 'bg-midnight/60 light:bg-slate-50 text-slate-300 light:text-slate-700 border-slate-700 hover:border-ice-cyan/60 btn-glow-subtle'
+                      }`}
+                      title={`Simulate Day T+${d} sea-ice concentration`}
+                    >
+                      T+{d}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -274,10 +298,10 @@ export function Visualizations() {
                     <button
                       key={p.id}
                       onClick={() => setColorMap(p.id)}
-                      className={`py-2 px-1 text-center rounded-lg text-xs font-mono border transition-all ${
+                      className={`py-2 px-1 text-center rounded-lg text-xs font-mono border transition-all cursor-pointer ${
                         colorMap === p.id
-                          ? 'bg-ice-cyan text-midnight font-bold border-ice-cyan shadow-sm'
-                          : 'bg-midnight/60 light:bg-slate-50 text-slate-300 light:text-slate-700 border-slate-700 hover:border-ice-cyan/50'
+                          ? 'bg-ice-cyan text-midnight font-bold border-ice-cyan shadow-sm btn-glow-cyan'
+                          : 'bg-midnight/60 light:bg-slate-50 text-slate-300 light:text-slate-700 border-slate-700 hover:border-ice-cyan/50 btn-glow-subtle'
                       }`}
                     >
                       {p.label}

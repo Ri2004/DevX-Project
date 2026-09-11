@@ -49,8 +49,8 @@ export function PolarNews() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white light:text-ocean-navy">
               Antarctic News & Scientific Bulletins
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Real-time polar dispatches, cryospheric observations, ice shelf calving notices, and NCPOR expedition communications.
+            <p className="text-xs sm:text-sm text-slate-400 light:text-slate-600">
+              Real-time polar dispatches, cryospheric observations, ice shelf calving notices, and polar vessel expedition communications.
             </p>
           </div>
 
@@ -168,12 +168,12 @@ export function PolarNews() {
                 <span>{activeArticle.readTime}</span>
               </div>
 
-              <div className="p-4 rounded-xl bg-midnight/60 light:bg-slate-50 border border-slate-700 text-xs sm:text-sm text-slate-200 light:text-slate-800 leading-relaxed whitespace-pre-line font-sans">
+              <div className="p-4 rounded-xl bg-midnight/60 light:bg-slate-50 border border-slate-700 light:border-slate-200 text-xs sm:text-sm text-slate-200 light:text-slate-800 leading-relaxed whitespace-pre-line font-sans">
                 {activeArticle.content}
               </div>
 
-              <div className="pt-4 border-t border-slate-700/80 flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-mono">Verified Dispatch — NCPOR Antarctic Operations Desk</span>
+              <div className="pt-4 border-t border-slate-700/80 light:border-slate-200 flex items-center justify-between text-xs">
+                <span className="text-slate-400 light:text-slate-600 font-mono">Verified Dispatch — Polar Maritime Operations Desk</span>
                 <button
                   onClick={() => setActiveArticle(null)}
                   className="px-5 py-2 rounded-xl bg-ice-cyan text-midnight font-bold"

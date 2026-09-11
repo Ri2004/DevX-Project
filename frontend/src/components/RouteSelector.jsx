@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Ship,
   MapPin,
@@ -42,7 +42,7 @@ export function RouteSelector() {
         <button
           onClick={refreshRoutes}
           disabled={isComputing}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-research-blue/40 light:bg-slate-100 hover:bg-research-blue/60 text-ice-cyan light:text-research-blue border border-ice-cyan/30 transition-all duration-200 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-research-blue/40 light:bg-slate-100 hover:bg-research-blue/60 text-ice-cyan light:text-research-blue border border-ice-cyan/30 transition-all duration-200 disabled:opacity-50 btn-glow"
         >
           <RefreshCw className={`w-3 h-3 ${isComputing ? 'animate-spin' : ''}`} />
           <span>{isComputing ? 'Computing...' : 'Recalculate'}</span>
@@ -62,8 +62,8 @@ export function RouteSelector() {
               onClick={() => setVesselIceClass(cls.id)}
               className={`py-1.5 px-2 rounded-lg font-mono font-semibold text-center border transition-all ${
                 vesselIceClass === cls.id
-                  ? 'bg-ice-cyan text-midnight border-ice-cyan shadow-glow-cyan/40'
-                  : 'bg-midnight/60 light:bg-slate-50 text-slate-300 light:text-slate-600 border-slate-border light:border-slate-light-border hover:border-ice-cyan/60'
+                  ? 'bg-ice-cyan text-midnight border-ice-cyan shadow-glow-cyan/40 btn-glow-cyan'
+                  : 'bg-midnight/60 light:bg-slate-50 text-slate-300 light:text-slate-600 border-slate-border light:border-slate-light-border hover:border-ice-cyan/60 btn-glow-subtle'
               }`}
               title={`${cls.label} - Power: ${cls.power}`}
             >
@@ -148,8 +148,8 @@ export function RouteSelector() {
                   onClick={() => setSelectedRouteId(r.id)}
                   className={`p-2.5 rounded-xl border text-left transition-all ${
                     isSelected
-                      ? `${col.border} ${col.bg} ring-2 ring-ice-cyan/40`
-                      : 'border-slate-border light:border-slate-light-border bg-midnight/40 light:bg-slate-50 hover:border-slate-400'
+                      ? `${col.border} ${col.bg} ring-2 ring-ice-cyan/40 btn-glow`
+                      : 'border-slate-border light:border-slate-light-border bg-midnight/40 light:bg-slate-50 hover:border-slate-400 btn-glow-subtle'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">

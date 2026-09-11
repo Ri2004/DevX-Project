@@ -11,7 +11,7 @@ except ImportError:  # pragma: no cover - dependency is required in production
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Antarctic Navigation Decision Support System"
+    PROJECT_NAME: str = "HimYatra: Antarctic Sea Ice & Navigation DSS"
     API_KEY: Optional[str] = None
     JWT_SECRET: Optional[str] = None
     NASA_EARTHDATA_USER: Optional[str] = None

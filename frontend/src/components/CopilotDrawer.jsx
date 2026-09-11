@@ -33,7 +33,7 @@ function generateGeminiResponse(query, context) {
         'The Southern Ocean is dominated by Antarctic krill (Euphausia superba), forming the foundational keystone species supporting baleen whales, crabeater seals, and seabirds.',
         'Emperor penguins (Aptenodytes forsteri) breed on fast ice during the Antarctic winter, relying on sub-ice polynyas for foraging. Vessels navigating within 10 NM of rookeries are mandated by the Antarctic Treaty Environmental Protocol to reduce acoustic signature and speed to 8 knots to minimize disruptive pressure waves.'
       ],
-      recommendations: ['Maintain environmental acoustic standoff', 'Record wildlife sightings in NCPOR biodiversity log']
+      recommendations: ['Maintain environmental acoustic standoff', 'Record wildlife sightings in polar biodiversity log']
     };
   }
 
