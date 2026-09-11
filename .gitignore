@@ -22,3 +22,5 @@ data/processed/*.npy
 
 # Local tooling
 .vscode/*.log
+
+*.log
